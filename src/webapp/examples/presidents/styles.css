@@ -38,7 +38,7 @@ td {
 }
 
 #sidebar {
-    width: 30%;
+    width: 20%;
     white-space: nowrap;
     background-color: #fff;
     background-image: url(images/whitehouse.jpg);
@@ -87,6 +87,12 @@ div.thumbnail {
     margin:     1em;
     width:      100px;
     height:     130px;
+    text-align: center;
+}
+
+div.map-lens {
+    width:      200px;
+    height:     200px;
     text-align: center;
 }
 

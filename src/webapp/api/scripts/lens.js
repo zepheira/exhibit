@@ -216,15 +216,16 @@ Exhibit.Lens._processTemplateNode = function(node, isXML) {
 
 Exhibit.Lens._processTemplateElement = function(elmt, isXML) {
     var templateNode = {
-        tag:                elmt.tagName,
-        control:            null,
-        condition:          null,
-        content:            null,
-        contentAttributes:  null,
-        attributes:         [],
-        styles:             [],
-        handlers:           [],
-        children:           null
+        tag:                    elmt.tagName,
+        control:                null,
+        condition:              null,
+        content:                null,
+        contentAttributes:      null,
+        subcontentAttributes:   null,
+        attributes:             [],
+        styles:                 [],
+        handlers:               [],
+        children:               null
     };
     
     var attributes = elmt.attributes;
@@ -244,8 +245,23 @@ Exhibit.Lens._processTemplateElement = function(elmt, isXML) {
                 templateNode.content = Exhibit.Expression.parse(value);
             } else if (name == "if-exists") {
                 templateNode.condition = {
-                    test:       "exists",
+                    test:       "if-exists",
                     expression: Exhibit.Expression.parse(value)
+                };
+            } else if (name == "if") {
+                templateNode.condition = {
+                    test:       "if",
+                    expression: Exhibit.Expression.parse(value)
+                };
+            } else if (name == "select") {
+                templateNode.condition = {
+                    test:       "select",
+                    expression: Exhibit.Expression.parse(value)
+                };
+            } else if (name == "case") {
+                templateNode.condition = {
+                    test:   "case",
+                    value:  value
                 };
             } else {
                 var x = name.indexOf("-content");
@@ -257,6 +273,17 @@ Exhibit.Lens._processTemplateElement = function(elmt, isXML) {
                         name:       name.substr(0, x),
                         expression: Exhibit.Expression.parse(value)
                     });
+                } else {
+                    x = name.indexOf("-subcontent");
+                    if (x > 0) {
+                        if (templateNode.subcontentAttributes == null) {
+                            templateNode.subcontentAttributes = [];
+                        }
+                        templateNode.subcontentAttributes.push({
+                            name:       name.substr(0, x),
+                            fragments:  Exhibit.Lens._parseSubcontentAttribute(value)
+                        });
+                    }
                 }
             }
         } else {
@@ -342,9 +369,38 @@ Exhibit.Lens._processStyle = function(templateNode, styleValue) {
     }
 };
 
+Exhibit.Lens._parseSubcontentAttribute = function(value) {
+    var fragments = [];
+    var current = 0;
+    var open;
+    while (current < value.length && (open = value.indexOf("{{", current)) >= 0) {
+        var close = value.indexOf("}}", open);
+        if (close < 0) {
+            break;
+        }
+        
+        fragments.push(value.substring(current, open));
+        fragments.push(Exhibit.Expression.parse(value.substring(open + 2, close)));
+        
+        current = close + 2;
+    }
+    if (current < value.length) {
+        fragments.push(value.substr(current));
+    }
+    return fragments;
+};
+
 Exhibit.Lens._performConstructFromLensTemplateJob = function(job) {
     Exhibit.Lens._constructFromLensTemplateNode(
-        job.itemID, "item", job.template.template, job.div, job.exhibit, job);
+        {   "value" :   job.itemID
+        },
+        {   "value" :   "item"
+        },
+        job.template.template, 
+        job.div, 
+        job.exhibit, 
+        job
+    );
         
     var node = job.div.firstChild;
     var tagName = node.tagName;
@@ -356,7 +412,7 @@ Exhibit.Lens._performConstructFromLensTemplateJob = function(job) {
 };
 
 Exhibit.Lens._constructFromLensTemplateNode = function(
-    value, valueType, templateNode, parentElmt, exhibit, job
+    roots, rootValueTypes, templateNode, parentElmt, exhibit, job
 ) {
     if (typeof templateNode == "string") {
         parentElmt.appendChild(document.createTextNode(templateNode));
@@ -364,20 +420,62 @@ Exhibit.Lens._constructFromLensTemplateNode = function(
     }
     
     var database = exhibit.getDatabase();
+    var children = templateNode.children;
     if (templateNode.condition != null) {
-        if (templateNode.condition.test == "exists") {
+        if (templateNode.condition.test == "if-exists") {
             if (!templateNode.condition.expression.testExists(
-                    { "value" : value }, 
-                    { "value" : valueType },
+                    roots,
+                    rootValueTypes,
                     "value",
                     database
                 )) {
                 return;
             }
+        } else if (templateNode.condition.test == "if") {
+            if (!templateNode.condition.expression.evaluate(
+                    roots,
+                    rootValueTypes,
+                    "value",
+                    database
+                ).values.contains(true)) {
+                return;
+            }
+        } else if (templateNode.condition.test == "select") {
+            var values = templateNode.condition.expression.evaluate(
+                roots,
+                rootValueTypes,
+                "value",
+                database
+            ).values;
+            
+            if (children != null) {
+                var lastChildTemplateNode = null;
+                for (var c = 0; c < children.length; c++) {
+                    var childTemplateNode = children[c];
+                    if (childTemplateNode.condition != null && 
+                        childTemplateNode.condition.test == "case") {
+                        
+                        if (values.contains(childTemplateNode.condition.value)) {
+                            Exhibit.Lens._constructFromLensTemplateNode(
+                                roots, rootValueTypes, childTemplateNode, parentElmt, exhibit, job);
+                                
+                            return;
+                        }
+                    } else if (typeof childTemplateNode != "string") {
+                        lastChildTemplateNode = childTemplateNode;
+                    }
+                }
+            }
+            
+            if (lastChildTemplateNode != null) {
+                Exhibit.Lens._constructFromLensTemplateNode(
+                    roots, rootValueTypes, lastChildTemplateNode, parentElmt, exhibit, job);
+            }
+            return;
         }
     }
     
-    var elmt = Exhibit.Lens._constructElmtWithAttributes(value, valueType, templateNode, parentElmt, database);
+    var elmt = Exhibit.Lens._constructElmtWithAttributes(templateNode, parentElmt, database);
     if (templateNode.contentAttributes != null) {
         var contentAttributes = templateNode.contentAttributes;
         for (var i = 0; i < contentAttributes.length; i++) {
@@ -385,13 +483,35 @@ Exhibit.Lens._constructFromLensTemplateNode = function(
             var values = [];
             
             attribute.expression.evaluate(
-                { "value" : value }, 
-                { "value" : valueType }, 
+                roots,
+                rootValueTypes,
                 "value",
                 database
             ).values.visit(function(v) { values.push(v); });
                 
             elmt.setAttribute(attribute.name, values.join(";"));
+        }
+    }
+    if (templateNode.subcontentAttributes != null) {
+        var subcontentAttributes = templateNode.subcontentAttributes;
+        for (var i = 0; i < subcontentAttributes.length; i++) {
+            var attribute = subcontentAttributes[i];
+            var fragments = attribute.fragments;
+            var results = "";
+            for (var r = 0; r < fragments.length; r++) {
+                var fragment = fragments[r];
+                if (typeof fragment == "string") {
+                    results += fragment;
+                } else {
+                    results += fragment.evaluateSingle(
+                        roots,
+                        rootValueTypes,
+                        "value",
+                        database
+                    ).value;
+                }
+            }
+            elmt.setAttribute(attribute.name, results);
         }
     }
     var handlers = templateNode.handlers;
@@ -400,11 +520,10 @@ Exhibit.Lens._constructFromLensTemplateNode = function(
         elmt[handler.name] = handler.code;
     }
     
-    var children = templateNode.children;
     if (templateNode.control != null) {
         switch (templateNode.control) {
         case "copy-button":
-            elmt.appendChild(exhibit.makeCopyButton(value));
+            elmt.appendChild(exhibit.makeCopyButton(roots["value"]));
             break;
         case "edit-button":
             var button = Exhibit.Lens.theme.createEditButton();
@@ -421,22 +540,26 @@ Exhibit.Lens._constructFromLensTemplateNode = function(
         case "item-link":
             var a = document.createElement("a");
             a.innerHTML = Exhibit.l10n.itemLinkLabel;
-            a.href = exhibit.getItemLink(value);
+            a.href = exhibit.getItemLink(roots["value"]);
             a.target = "_blank";
             elmt.appendChild(a);
         }
     } else if (templateNode.content != null) {
         var results = templateNode.content.evaluate(
-            { "value" : value }, 
-            { "value" : valueType }, 
+            roots,
+            rootValueTypes,
             "value",
             database
         );
         if (children != null) {
+            var rootValueTypes2 = { "value" : results.valueType, "index" : "number" };
+            var index = 1;
+            
             var processOneValue = function(childValue) {
+                var roots2 = { "value" : childValue, "index" : index++ };
                 for (var i = 0; i < children.length; i++) {
                     Exhibit.Lens._constructFromLensTemplateNode(
-                        childValue, results.valueType, children[i], elmt, exhibit, job);
+                        roots2, rootValueTypes2, children[i], elmt, exhibit, job);
                 }
             };
             if (results.values instanceof Array) {
@@ -451,12 +574,12 @@ Exhibit.Lens._constructFromLensTemplateNode = function(
         }
     } else if (children != null) {
         for (var i = 0; i < children.length; i++) {
-            Exhibit.Lens._constructFromLensTemplateNode(value, valueType, children[i], elmt, exhibit, job);
+            Exhibit.Lens._constructFromLensTemplateNode(roots, rootValueTypes, children[i], elmt, exhibit, job);
         }
     }
 };
 
-Exhibit.Lens._constructElmtWithAttributes = function(value, valueType, templateNode, parentElmt, database) {
+Exhibit.Lens._constructElmtWithAttributes = function(templateNode, parentElmt, database) {
     var elmt;
     switch (templateNode.tag) {
     case "tr":
@@ -532,7 +655,7 @@ Exhibit.Lens._constructEditFromLensTemplateNode = function(
     
     var database = exhibit.getDatabase();
     if (templateNode.condition != null) {
-        if (templateNode.condition.test == "exists") {
+        if (templateNode.condition.test == "if-exists") {
             if (!templateNode.condition.expression.testExists(
                     { "value" : value }, 
                     { "value" : valueType },

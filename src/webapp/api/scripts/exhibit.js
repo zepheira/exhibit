@@ -319,7 +319,76 @@ Exhibit._Impl.prototype.loadDataFromDomNode = function(node) {
 };
 
 Exhibit._Impl.prototype.loadDataFromTable = function(table) {
-    window.alert("not yet implemented");
+    var textOf = function( n ) { return n.textContent || n.innerText || ""; };
+    var readAttributes = function( node, attributes ) {
+	var result = {}, found = false, attr, value, i;
+	for( i = 0; attr = attributes[i]; i++ ) {
+	    value = node.getAttribute("ex:" + attr);
+	    if( value ) {
+		result[attr] = value;
+		found = true;
+	    }
+	}
+	return found && result;
+    }
+
+    if( typeof table == "string" )
+	table = document.getElementById( table );
+    table.style.display = "none"; // as we are replacing it with the exhibit UI
+
+    // FIXME: it's probably a better idea to ask database.js for these lists:
+    var typelist = [ "uri", "label", "pluralLabel" ];
+    var proplist = [ "uri", "valueType", // [text|number|date|boolean|item|url]
+		     "label", "reverseLabel",
+		     "pluralLabel", "reversePluralLabel",
+		     "groupingLabel", "reverseGroupingLabel" ];
+
+    var parsed = {}; // accumulator of all data we scrape up (for loadData)
+    var type = table.getAttribute( 'ex:type' );
+    var types = type && readAttributes( table, typelist );
+    if( types ) {
+	parsed.types = {};
+	parsed.types[type] = types;
+    }
+
+    var fields = [], props = {}, i, j, k;
+    var tr, trs = table.getElementsByTagName("tr");
+    var th, ths = trs[0].getElementsByTagName("th");
+    for( i = 0; th = ths[i]; i++ ) {
+	var field = textOf( th ).trim();
+	fields.push( field );
+	var attr = readAttributes( th, proplist );
+	if( attr ) {
+	    props[field] = attr;
+	    parsed.properties = props;
+	}
+    }
+
+    var img, imgs = table.getElementsByTagName("img");
+    while( img = imgs[0] ) // replace any images with their respective URLs
+	img.parentNode.replaceChild( document.createTextNode( img.src ), img );
+
+    var items = [], td, data;
+    for( i = 1; tr = trs[i]; i++ ) {
+	var item = {};
+	var tds = tr.getElementsByTagName("td");
+	for( j = 0; td = tds[j]; j++ ) {
+	    data = textOf( td ).trim();
+	    if( !data )
+		continue;
+	    if( data.indexOf(';') != -1 ) { // multi; value; node?
+		data = data.split(';');
+		for( k = 0; k<data.length; k++ )
+		    data[k] = data[k].trim();
+	    }
+	    item[fields[j]] = data;
+	}
+	items.push( item );
+	parsed.items = items;
+    }
+    // console.log( "loadDataFromTable: %s %o", type, parsed );
+
+    return this.loadData( parsed, location.href );
 };
 
 Exhibit._Impl.prototype.loadData = function(data) {

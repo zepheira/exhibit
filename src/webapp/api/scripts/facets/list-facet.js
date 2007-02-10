@@ -7,8 +7,7 @@ Exhibit.ListFacet = function(exhibit, facet, div, configuration) {
     this._exhibit = exhibit;
     this._configuration = configuration;
     
-    this._property = facet.property;
-    this._forward = facet.forward;
+    this._facetID = facet.facetID;
     this._facetLabel = facet.facetLabel;
     
     this._dom = null;
@@ -16,7 +15,7 @@ Exhibit.ListFacet = function(exhibit, facet, div, configuration) {
     this._groupingBoxDom = null;
     
     this._constructFrame(div, facet);
-    this._constructBody(facet);
+    this.update(facet);
 };
 
 Exhibit.ListFacet.prototype.dispose = function() {
@@ -33,8 +32,12 @@ Exhibit.ListFacet.prototype.dispose = function() {
 };
 
 Exhibit.ListFacet.prototype.update = function(facet) {
+    this._dom.valuesContainer.style.display = "none";
     this._dom.valuesContainer.innerHTML = "";
+    
     this._constructBody(facet);
+    
+    this._dom.valuesContainer.style.display = "block";
 };
 
 Exhibit.ListFacet.prototype._constructFrame = function(div, facet) {
@@ -128,8 +131,7 @@ Exhibit.ListFacet.prototype._constructBody = function(facet) {
 };
 
 Exhibit.ListFacet.prototype._filter = function(valueDom) {
-    var property = this._property;
-    var forward = this._forward;
+    var facetID = this._facetID;
     var level = this._groupLevelCount - valueDom.level - 1;
     var value = valueDom.value;
     var selected = !valueDom.selected;
@@ -138,12 +140,12 @@ Exhibit.ListFacet.prototype._filter = function(valueDom) {
     SimileAjax.History.addAction({
         perform: function() {
             browseEngine.setValueRestriction(
-                property, forward, level, value, selected
+                facetID, level, value, selected
             );
         },
         undo: function() {
             browseEngine.setValueRestriction(
-                property, forward, level, value, !selected
+                facetID, level, value, !selected
             );
         },
         label: selected ? 
@@ -159,15 +161,14 @@ Exhibit.ListFacet.prototype._slide = function() {
 
 Exhibit.ListFacet.prototype._clearSelections = function() {
     var state = {};
-    var property = this._property;
-    var forward = this._forward;
+    var facetID = this._facetID;
     var browseEngine = this._exhibit.getBrowseEngine();
     SimileAjax.History.addAction({
         perform: function() {
-            state.restrictions = browseEngine.clearFacetRestrictions(property, forward);
+            state.restrictions = browseEngine.clearFacetRestrictions(facetID);
         },
         undo: function() {
-            browseEngine.applyFacetRestrictions(property, forward, state.restrictions);
+            browseEngine.applyFacetRestrictions(facetID, state.restrictions);
         },
         label: "clear selections",
         uiLayer: SimileAjax.WindowManager.getBaseLayer(),
@@ -249,7 +250,7 @@ Exhibit.ListFacet.prototype._reconstructGroupingBox = function() {
         }
     };
     
-    var groups = this._exhibit.getBrowseEngine().getGroups(this._property, this._forward);
+    var groups = this._exhibit.getBrowseEngine().getGroups(this._facetID);
     for (var i = 0; i < groups.length; i++) {
         makeGroup(groups[i], i);
     }
@@ -270,35 +271,34 @@ Exhibit.ListFacet.prototype._group = function(groupDom, optionDom) {
     var level = groupDom.level;
     
     this._exhibit.getBrowseEngine().group(
-        this._property, 
-        this._forward, 
+        this._facetID,
         level, 
         property, 
         forward
     );
     this._reconstructGroupingBox();
     
-    var facet = this._exhibit.getBrowseEngine().getFacet(this._property, this._forward);
+    var facet = this._exhibit.getBrowseEngine().getFacet(this._facetID);
     if (facet != null) {
         this.update(facet);
     }
 }
 
 Exhibit.ListFacet.prototype._ungroup = function(groupDom) {
-    this._exhibit.getBrowseEngine().ungroup(this._property, this._forward, groupDom.level);
+    this._exhibit.getBrowseEngine().ungroup(this._facetID, groupDom.level);
     this._reconstructGroupingBox();
     
-    var facet = this._exhibit.getBrowseEngine().getFacet(this._property, this._forward);
+    var facet = this._exhibit.getBrowseEngine().getFacet(this._facetID);
     if (facet != null) {
         this.update(facet);
     }
 }
 
 Exhibit.ListFacet.prototype._ungroupAll = function() {
-    this._exhibit.getBrowseEngine().ungroup(this._property, this._forward, 0);
+    this._exhibit.getBrowseEngine().ungroup(this._facetID, 0);
     this._reconstructGroupingBox();
     
-    var facet = this._exhibit.getBrowseEngine().getFacet(this._property, this._forward);
+    var facet = this._exhibit.getBrowseEngine().getFacet(this._facetID);
     if (facet != null) {
         this.update(facet);
     }

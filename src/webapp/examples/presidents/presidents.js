@@ -125,7 +125,7 @@
             presidency: 9,
             index: 9,
             term: [ 14 ],
-            dieInOffice: 'no',
+            dieInOffice: 'yes',
             imageURL: 'http://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/William_Henry_Harrison.png/100px-William_Henry_Harrison.png',
             url: 'http://en.wikipedia.org/wiki/William_Henry_Harrison',
             party: "Whig",
@@ -550,7 +550,9 @@
             url: 'http://en.wikipedia.org/wiki/Gerald_Ford',
             party: "Republican",
             birth: '1913-07-14',
+            death: '2006-12-26',
             birthPlace: 'Omaha, Nebraska, USA',
+            deathPlace: 'Rancho Mirage, California, USA',
             religion: [ "Episcopal" ]
         },
         {   label: 'Jimmy Carter',
@@ -1117,6 +1119,9 @@
         },
         {   id: 'Ronald Reagan',
             deathLatLng: '34.101111,-118.453056' 
+        },
+        {   id: 'Gerald Ford',
+            deathLatLng: '33.739713,-116.411819'
         }
     ]
 }

@@ -1,4 +1,4 @@
-/*==================================================
+    /*==================================================
  *  Exhibit.TimelineView
  *==================================================
  */
@@ -9,9 +9,26 @@ Exhibit.TimelineView = function(exhibit, div, configuration, domConfiguration, g
     this._configuration = configuration;
     this._globalConfiguration = globalConfiguration;
     
+    this._lensConfiguration = {};
+    if ("Lens" in globalConfiguration) {
+        this._lensConfiguration["Lens"] = globalConfiguration["Lens"];
+    }
+    if (domConfiguration != null) {
+        Exhibit.ViewPanel.extractItemLensDomConfiguration(
+            domConfiguration, this._lensConfiguration);
+    }
+    if ("lensSelector" in configuration) {
+        if (!("Lens" in this._lensConfiguration)) {
+            this._lensConfiguration["Lens"] = {};
+        }
+        this._lensConfiguration["Lens"].lensSelector = configuration.lensSelector;
+    }
+    
     this._densityFactor = 50;
     this._topBandIntervalPixels = 150;
     this._bottomBandIntervalPixels = 200;
+    this._bubbleWidth = 400;
+    this._bubbleHeight = 300;
     this._timelineConstructor = null;
     
     var getDurations = null;
@@ -114,6 +131,16 @@ Exhibit.TimelineView = function(exhibit, div, configuration, domConfiguration, g
                 this._densityFactor = parseFloat(densityFactor);
             }
             
+            var bubbleWidth = Exhibit.getAttribute(domConfiguration, "bubbleWidth");
+            if (bubbleWidth != null && bubbleWidth.length > 0) {
+                this._bubbleWidth = parseInt(bubbleWidth);
+            }
+            
+            var bubbleHeight = Exhibit.getAttribute(domConfiguration, "bubbleHeight");
+            if (bubbleHeight != null && bubbleHeight.length > 0) {
+                this._bubbleHeight = parseInt(bubbleHeight);
+            }
+            
             var timelineConstructor = Exhibit.getAttribute(domConfiguration, "timelineConstructor");
             if (timelineConstructor != null) {
                 var f = eval(timelineConstructor);
@@ -130,6 +157,12 @@ Exhibit.TimelineView = function(exhibit, div, configuration, domConfiguration, g
         }
         if ("densityFactor" in configuration) {
             this._densityFactor = configuration.densityFactor;
+        }
+        if ("bubbleWidth" in configuration) {
+            this._bubbleWidth = configuration.bubbleWidth;
+        }
+        if ("bubbleHeight" in configuration) {
+            this._bubbleHeight = configuration.bubbleHeight;
         }
         if ("timelineConstructor" in configuration) {
             this._timelineConstructor = configuration.timelineConstructor;
@@ -252,8 +285,8 @@ Exhibit.TimelineView.prototype._reconstructTimeline = function(newEvents) {
         }
         
         var theme = Timeline.ClassicTheme.create();
-        theme.event.bubble.width = 300;
-        theme.event.bubble.height = 250;
+        theme.event.bubble.width = this._bubbleWidth;
+        theme.event.bubble.height = this._bubbleHeight;
         var bandInfos = [
             Timeline.createBandInfo({
                 width:          "75%", 
@@ -415,5 +448,5 @@ Exhibit.TimelineView.prototype._reconstruct = function() {
 };
 
 Exhibit.TimelineView.prototype._fillInfoBubble = function(evt, elmt, theme, labeller) {
-    new Exhibit.Lens(evt._itemID, elmt, this._exhibit, this._globalConfiguration);
+    new Exhibit.Lens(evt._itemID, elmt, this._exhibit, this._lensConfiguration);
 };
