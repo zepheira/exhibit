@@ -6,10 +6,10 @@
     <link href="presidents.js" type="application/json" rel="exhibit/data" />
     
     <!-- key for the simile web site -->
-    <script src="http://static.simile.mit.edu/exhibit/api/exhibit-api.js?views=timeline&gmapkey=ABQIAAAA5JLLfCE9c7HAtg25QM2KCRQ_WLz7LpUMtzN755Z1xScTjdiF-xRJO2-n-QiclGr93ekHLb-pnN0tgQ" type="text/javascript"></script>
+    <!--script src="http://static.simile.mit.edu/exhibit/api/exhibit-api.js?views=timeline&gmapkey=ABQIAAAA5JLLfCE9c7HAtg25QM2KCRQ_WLz7LpUMtzN755Z1xScTjdiF-xRJO2-n-QiclGr93ekHLb-pnN0tgQ" type="text/javascript"></script-->
 
     <!-- key for 127.0.0.1 -->
-    <!--script src="/exhibit/api/exhibit-api.js?views=timeline&gmapkey=ABQIAAAAusru4d5JfzaqJCJYkYlYlRTRYMMr9E_iYboHSHMQOKiCoeYD4BQxBAJZ1DpPNP7kGNCoqGJ8woY3HA&bundle=false" type="text/javascript"></script-->
+    <script src="/exhibit/api/exhibit-api.js?views=timeline&gmapkey=ABQIAAAAusru4d5JfzaqJCJYkYlYlRTRYMMr9E_iYboHSHMQOKiCoeYD4BQxBAJZ1DpPNP7kGNCoqGJ8woY3HA" type="text/javascript"></script>
 
     <script type="text/javascript">
         var rowStyler = function(item, database, tr) {
@@ -28,7 +28,7 @@
     <link rel='stylesheet' href='styles.css' type='text/css' />
 </head>
 
-<body onload="Exhibit.create(null, 'President');" ex:exhibitLogoColor="DeepSkyBlue">
+<body ex:exhibitLogoColor="DeepSkyBlue" ex:ondataload="window.exhibit = Exhibit.create('President');">
     <table id="frame">
         <tr>
             <td id="content">
@@ -36,7 +36,7 @@
                 <p>Here is the <a href="presidents.js" target="_blank">Exhibit JSON data file</a>.
                 <div id="exhibit-control-panel"></div>
                 <div id="exhibit-view-panel">
-                    <div class="item" ex:role="exhibit-lens">
+                    <div class="item" ex:role="exhibit-lens" style="display: none;">
                         <table cellpadding="10" width="100%">
                             <tr>
                                 <td width="1"><img ex:src-content=".imageURL" /></td>
@@ -83,7 +83,7 @@
                         ex:center="38.479394673276445, -95.361328125"
                         ex:zoom="4"
                         >
-                        <div class="map-lens" ex:role="exhibit-lens">
+                        <div class="map-lens" ex:role="exhibit-lens" style="display: none;">
                             <div><img ex:src-content=".imageURL" /></div>
                             <span ex:content=".label"></span><br/>
                             <span ex:content=".birthPlace"></span>, <span ex:content=".birth"></span>
@@ -97,7 +97,7 @@
                         ex:center="38.479394673276445, -95.361328125"
                         ex:zoom="4"
                         >
-                        <div class="map-lens" ex:role="exhibit-lens">
+                        <div class="map-lens" ex:role="exhibit-lens" style="display: none;">
                             <div><img ex:src-content=".imageURL" /></div>
                             <span ex:content=".label"></span><br/>
                             <span ex:content=".deathPlace"></span>, <span ex:content=".death"></span>

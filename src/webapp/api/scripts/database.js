@@ -3,7 +3,38 @@
  *  http://simile.mit.edu/wiki/Exhibit/API/Database
  *======================================================================
  */
-Exhibit.Database = function() {
+
+Exhibit.Database = new Object();
+
+Exhibit.Database.create = function() {
+    return new Exhibit.Database._Impl();
+};
+
+Exhibit.Database.createAndLoad = function(fDone) {
+    var database = Exhibit.Database.create();
+    
+    var links = [];
+    var heads = document.documentElement.getElementsByTagName("head");
+    for (var h = 0; h < heads.length; h++) {
+        var linkElmts = heads[h].getElementsByTagName("link");
+        for (var l = 0; l < linkElmts.length; l++) {
+            var link = linkElmts[l];
+            if (link.rel == "exhibit/data") {
+                links.push(link);
+            }
+        }
+    }
+    
+    database._loadLinks(links, fDone);
+    
+    return database;
+};
+
+/*==================================================
+ *  Exhibit.Database._Impl
+ *==================================================
+ */
+Exhibit.Database._Impl = function() {
     this._types = {};
     this._properties = {};
     this._propertyArray = {};
@@ -60,15 +91,57 @@ Exhibit.Database = function() {
     this._properties["uri"]             = uriProperty;
 };
 
-Exhibit.Database.prototype.addListener = function(listener) {
+Exhibit.Database._Impl.prototype.createDatabase = function() {
+    return Exhibit.Database.create();
+};
+
+Exhibit.Database._Impl.prototype.addListener = function(listener) {
     this._listeners.add(listener);
 };
 
-Exhibit.Database.prototype.removeListener = function(listener) {
+Exhibit.Database._Impl.prototype.removeListener = function(listener) {
     this._listeners.remove(listener);
 };
 
-Exhibit.Database.prototype.loadTypes = function(typeEntries, baseURI) {
+Exhibit.Database._Impl.prototype._loadLinks = function(links, fDone) {
+    links = [].concat(links);
+    var database = this;
+    var fNext = function() {
+        while (links.length > 0) {
+            var link = links.shift();
+            var importer = Exhibit.importers[link.type];
+            if (importer) {
+                try {
+                    importer.load(link, database, fNext);
+                    return;
+                } catch (e) {
+                    SimileAjax.Debug.log("Error using importer for data of type " + link.type);
+                }
+            } else {
+                SimileAjax.Debug.log("No importer for data of type " + link.type);
+            }
+        } 
+        
+        if (fDone != null) {
+            fDone();
+        }
+    };
+    fNext();
+};
+
+Exhibit.Database._Impl.prototype.loadData = function(o, baseURI) {
+    if ("types" in o) {
+        this.loadTypes(o.types, baseURI);
+    }
+    if ("properties" in o) {
+        this.loadProperties(o.properties, baseURI);
+    }
+    if ("items" in o) {
+        this.loadItems(o.items, baseURI);
+    }
+};
+
+Exhibit.Database._Impl.prototype.loadTypes = function(typeEntries, baseURI) {
     this._listeners.fire("onBeforeLoadingTypes", []);
     try {
         var lastChar = baseURI.substr(baseURI.length - 1)
@@ -78,7 +151,7 @@ Exhibit.Database.prototype.loadTypes = function(typeEntries, baseURI) {
             baseURI += "/";
         }
     
-        for (typeID in typeEntries) {
+        for (var typeID in typeEntries) {
             if (typeID != undefined && typeID != null) {
                 var typeEntry = typeEntries[typeID];
                 
@@ -108,7 +181,7 @@ Exhibit.Database.prototype.loadTypes = function(typeEntries, baseURI) {
     }
 };
 
-Exhibit.Database.prototype.loadProperties = function(propertyEntries, baseURI) {
+Exhibit.Database._Impl.prototype.loadProperties = function(propertyEntries, baseURI) {
     this._listeners.fire("onBeforeLoadingProperties", []);
     try {
         var lastChar = baseURI.substr(baseURI.length - 1)
@@ -118,7 +191,7 @@ Exhibit.Database.prototype.loadProperties = function(propertyEntries, baseURI) {
             baseURI += "/";
         }
     
-        for (propertyID in propertyEntries) {
+        for (var propertyID in propertyEntries) {
             var propertyEntry = propertyEntries[propertyID];
             
             var property;
@@ -150,7 +223,7 @@ Exhibit.Database.prototype.loadProperties = function(propertyEntries, baseURI) {
     }
 };
 
-Exhibit.Database.prototype.loadItems = function(itemEntries, baseURI) {
+Exhibit.Database._Impl.prototype.loadItems = function(itemEntries, baseURI) {
     this._listeners.fire("onBeforeLoadingItems", []);
     try {
         var lastChar = baseURI.substr(baseURI.length - 1);
@@ -183,15 +256,15 @@ Exhibit.Database.prototype.loadItems = function(itemEntries, baseURI) {
     }
 };
 
-Exhibit.Database.prototype.getType = function(typeID) {
+Exhibit.Database._Impl.prototype.getType = function(typeID) {
     return this._types[typeID];
 };
 
-Exhibit.Database.prototype.getProperty = function(propertyID) {
+Exhibit.Database._Impl.prototype.getProperty = function(propertyID) {
     return propertyID in this._properties ? this._properties[propertyID] : null;
 };
 
-Exhibit.Database.prototype.getAllProperties = function() {
+Exhibit.Database._Impl.prototype.getAllProperties = function() {
     if (this._propertyArray == null) {
         this._propertyArray = [];
         for (propertyID in this._properties) {
@@ -202,22 +275,22 @@ Exhibit.Database.prototype.getAllProperties = function() {
     return [].concat(this._propertyArray);
 };
 
-Exhibit.Database.prototype.getAllItems = function() {
+Exhibit.Database._Impl.prototype.getAllItems = function() {
     var items = new Exhibit.Set();
     items.addSet(this._items);
     
     return items;
 };
 
-Exhibit.Database.prototype.getAllItemsCount = function() {
+Exhibit.Database._Impl.prototype.getAllItemsCount = function() {
     return this._items.size();
 };
 
-Exhibit.Database.prototype.containsItem = function(itemID) {
+Exhibit.Database._Impl.prototype.containsItem = function(itemID) {
     return this._items.contains(itemID);
 };
 
-Exhibit.Database.prototype.getNamespaces = function(idToQualifiedName, prefixToBase) {
+Exhibit.Database._Impl.prototype.getNamespaces = function(idToQualifiedName, prefixToBase) {
     var bases = {};
     for (propertyID in this._properties) {
         var property = this._properties[propertyID];
@@ -264,7 +337,7 @@ Exhibit.Database.prototype.getNamespaces = function(idToQualifiedName, prefixToB
     }
 };
 
-Exhibit.Database.prototype._loadItem = function(itemEntry, indexFunction, baseURI) {
+Exhibit.Database._Impl.prototype._loadItem = function(itemEntry, indexFunction, baseURI) {
     if (!("label" in itemEntry) && !("id" in itemEntry)) {
         SimileAjax.Debug.warn("Item entry has no label and no id: " + itemEntry);
         return;
@@ -307,7 +380,7 @@ Exhibit.Database.prototype._loadItem = function(itemEntry, indexFunction, baseUR
     }
 };
 
-Exhibit.Database.prototype._ensureTypeExists = function(typeID, baseURI) {
+Exhibit.Database._Impl.prototype._ensureTypeExists = function(typeID, baseURI) {
     if (!(typeID in this._types)) {
         var type = new Exhibit.Database._Type(typeID);
         
@@ -319,7 +392,7 @@ Exhibit.Database.prototype._ensureTypeExists = function(typeID, baseURI) {
     }
 };
 
-Exhibit.Database.prototype._ensurePropertyExists = function(propertyID, baseURI) {
+Exhibit.Database._Impl.prototype._ensurePropertyExists = function(propertyID, baseURI) {
     if (!(propertyID in this._properties)) {
         var property = new Exhibit.Database._Property(propertyID);
         
@@ -379,7 +452,7 @@ Exhibit.Database._indexPutList = function(index, x, y, list) {
     }
 };
 
-Exhibit.Database.prototype._indexFillSet = function(index, x, y, set, filter) {
+Exhibit.Database._Impl.prototype._indexFillSet = function(index, x, y, set, filter) {
     var hash = index[x];
     if (hash) {
         var array = hash[y];
@@ -400,7 +473,7 @@ Exhibit.Database.prototype._indexFillSet = function(index, x, y, set, filter) {
     }
 };
 
-Exhibit.Database.prototype._indexCountDistinct = function(index, x, y, filter) {
+Exhibit.Database._Impl.prototype._indexCountDistinct = function(index, x, y, filter) {
     var count = 0;
     var hash = index[x];
     if (hash) {
@@ -420,7 +493,7 @@ Exhibit.Database.prototype._indexCountDistinct = function(index, x, y, filter) {
     return count;
 };
 
-Exhibit.Database.prototype._get = function(index, x, y, set, filter) {
+Exhibit.Database._Impl.prototype._get = function(index, x, y, set, filter) {
     if (!set) {
         set = new Exhibit.Set();
     }
@@ -428,7 +501,7 @@ Exhibit.Database.prototype._get = function(index, x, y, set, filter) {
     return set;
 };
 
-Exhibit.Database.prototype._getUnion = function(index, xSet, y, set, filter) {
+Exhibit.Database._Impl.prototype._getUnion = function(index, xSet, y, set, filter) {
     if (!set) {
         set = new Exhibit.Set();
     }
@@ -440,7 +513,7 @@ Exhibit.Database.prototype._getUnion = function(index, xSet, y, set, filter) {
     return set;
 };
 
-Exhibit.Database.prototype._countDistinctUnion = function(index, xSet, y, filter) {
+Exhibit.Database._Impl.prototype._countDistinctUnion = function(index, xSet, y, filter) {
     var count = 0;
     var database = this;
     xSet.visit(function(x) {
@@ -449,43 +522,43 @@ Exhibit.Database.prototype._countDistinctUnion = function(index, xSet, y, filter
     return count;
 };
 
-Exhibit.Database.prototype._countDistinct = function(index, x, y, filter) {
+Exhibit.Database._Impl.prototype._countDistinct = function(index, x, y, filter) {
     return this._indexCountDistinct(index, x, y, filter);
 };
 
-Exhibit.Database.prototype.getObjects = function(s, p, set, filter) {
+Exhibit.Database._Impl.prototype.getObjects = function(s, p, set, filter) {
     return this._get(this._spo, s, p, set, filter);
 };
 
-Exhibit.Database.prototype.countDistinctObjects = function(s, p, filter) {
+Exhibit.Database._Impl.prototype.countDistinctObjects = function(s, p, filter) {
     return this._countDistinct(this._spo, s, p, filter);
 };
 
-Exhibit.Database.prototype.getObjectsUnion = function(subjects, p, set, filter) {
+Exhibit.Database._Impl.prototype.getObjectsUnion = function(subjects, p, set, filter) {
     return this._getUnion(this._spo, subjects, p, set, filter);
 };
 
-Exhibit.Database.prototype.countDistinctObjectsUnion = function(subjects, p, filter) {
+Exhibit.Database._Impl.prototype.countDistinctObjectsUnion = function(subjects, p, filter) {
     return this._countDistinctUnion(this._spo, subjects, p, filter);
 };
 
-Exhibit.Database.prototype.getSubjects = function(o, p, set, filter) {
+Exhibit.Database._Impl.prototype.getSubjects = function(o, p, set, filter) {
     return this._get(this._ops, o, p, set, filter);
 };
 
-Exhibit.Database.prototype.countDistinctSubjects = function(o, p, filter) {
+Exhibit.Database._Impl.prototype.countDistinctSubjects = function(o, p, filter) {
     return this._countDistinct(this._ops, o, p, filter);
 };
 
-Exhibit.Database.prototype.getSubjectsUnion = function(objects, p, set, filter) {
+Exhibit.Database._Impl.prototype.getSubjectsUnion = function(objects, p, set, filter) {
     return this._getUnion(this._ops, objects, p, set, filter);
 };
 
-Exhibit.Database.prototype.countDistinctSubjectsUnion = function(objects, p, filter) {
+Exhibit.Database._Impl.prototype.countDistinctSubjectsUnion = function(objects, p, filter) {
     return this._countDistinctUnion(this._ops, objects, p, filter);
 };
 
-Exhibit.Database.prototype.getObject = function(s, p) {
+Exhibit.Database._Impl.prototype.getObject = function(s, p) {
     var hash = this._spo[s];
     if (hash) {
         var array = hash[p];
@@ -496,7 +569,7 @@ Exhibit.Database.prototype.getObject = function(s, p) {
     return null;
 };
 
-Exhibit.Database.prototype.getSubject = function(o, p) {
+Exhibit.Database._Impl.prototype.getSubject = function(o, p) {
     var hash = this._ops[o];
     if (hash) {
         var array = hash[p];
@@ -507,7 +580,7 @@ Exhibit.Database.prototype.getSubject = function(o, p) {
     return null;
 };
 
-Exhibit.Database.prototype.getSubjectsInRange = function(p, min, max, inclusive, set, filter) {
+Exhibit.Database._Impl.prototype.getSubjectsInRange = function(p, min, max, inclusive, set, filter) {
     if (!set) {
         set = new Exhibit.Set();
     }
@@ -532,7 +605,7 @@ Exhibit.Database.prototype.getSubjectsInRange = function(p, min, max, inclusive,
     return set;
 };
 
-Exhibit.Database.prototype.getTypeLabels = function(set) {
+Exhibit.Database._Impl.prototype.getTypeLabels = function(set) {
     var typeIDSet = this.getObjectsUnion(set, "type", null, null);
     var labels = [];
     var pluralLabels = [];

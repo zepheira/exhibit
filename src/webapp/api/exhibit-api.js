@@ -17,7 +17,7 @@
             loaded:     false,
             bundle:     true,
             namespace:  "http://simile.mit.edu/2006/11/exhibit#",
-	    callbacks:	{}
+            importers:  {}
         };
     
         var javascriptFiles = [
@@ -42,6 +42,10 @@
             "views/thumbnail-view.js",
             "views/tabular-view.js",
             "lens.js",
+            
+            "importers/exhibit-json-importer.js",
+            "importers/html-table-importer.js",
+            "importers/jsonp-importer.js",
             
             "exporters/rdf-xml-exporter.js",
             "exporters/semantic-wikitext-exporter.js",

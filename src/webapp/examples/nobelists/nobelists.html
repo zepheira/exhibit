@@ -4,8 +4,8 @@
 
     <link href="nobelists.js" type="application/json" rel="exhibit/data" />
 
-    <script src="http://static.simile.mit.edu/exhibit/api/exhibit-api.js?views=timeline"
-        type="text/javascript"></script>
+    <!--script src="http://static.simile.mit.edu/exhibit/api/exhibit-api.js?views=timeline" type="text/javascript"></script-->
+    <script src="/exhibit/api/exhibit-api.js?views=timeline" type="text/javascript"></script>
 
     <style>
         body {
@@ -124,7 +124,7 @@
         <div id="exhibit-control-panel"></div>
     </div>
     <div id="exhibit-view-panel">
-        <table ex:role="exhibit-lens" class="nobelist">
+        <table ex:role="exhibit-lens" class="nobelist" style="display: none;">
             <tr>
                 <td><img ex:src-content=".imageURL" /></td>
                 <td>
@@ -145,7 +145,7 @@
             ex:showAll="true"
             ex:orders=".discipline"
             ex:possibleOrders=".label, .last-name, .discipline, .relationship, .shared, .deceased, .nobel-year">
-            <div ex:role="exhibit-lens" class="nobelist-thumbnail">
+            <div ex:role="exhibit-lens" class="nobelist-thumbnail" style="display: none;">
                 <img ex:src-content=".imageURL" />
                 <div><span ex:content=".label"></span></div>
                 <div>
@@ -167,7 +167,7 @@
             ex:marker=".discipline"
             ex:bubbleWidth="150"
             ex:bubbleHeight="150">
-            <div ex:role="exhibit-lens" class="nobelist-timeline-lens">
+            <div ex:role="exhibit-lens" class="nobelist-timeline-lens" style="display: none;">
                 <img ex:src-content=".imageURL" />
                 <div><span ex:content=".label"></span></div>
                 <div>
